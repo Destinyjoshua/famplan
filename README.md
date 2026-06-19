@@ -136,7 +136,7 @@ flutter build appbundle --release \
 2. Set your **Team** and **Bundle ID** (`com.famplan.famplan` or your own)
 3. Configure **Signing & Capabilities** for Release
 4. Archive → Distribute to App Store Connect
-5. App Store Connect: name **FamPlan**, category Lifestyle, age 4+
+5. App Store Connect: name **Famplans** (store listing name; bundle ID stays `com.famplan.famplan`), category Lifestyle, age 4+
 
 ### 4. Android (Play Store)
 
@@ -147,7 +147,7 @@ flutter build appbundle --release \
 2. Copy `android/key.properties.example` → `android/key.properties` and fill in paths/passwords
 3. Build: `flutter build appbundle --release` (uses release signing when `key.properties` exists)
 4. Upload the `.aab` from `build/app/outputs/bundle/release/`
-5. Play Console: name **FamPlan**, category Lifestyle
+5. Play Console: name **Famplans** (or another unique name if taken), category Lifestyle
 
 ### 5. Store listing copy (starter)
 
