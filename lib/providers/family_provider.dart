@@ -18,6 +18,13 @@ final familyMembersProvider =
   return ref.watch(familyRepositoryProvider).getMembers(familyId);
 });
 
+final currentFamilyMembershipProvider =
+    FutureProvider<FamilyMember?>((ref) async {
+  final family = await ref.watch(currentFamilyProvider.future);
+  if (family == null) return null;
+  return ref.watch(familyRepositoryProvider).getCurrentMembership(family.id);
+});
+
 class FamilyController extends Notifier<AsyncValue<Family?>> {
   @override
   AsyncValue<Family?> build() => const AsyncValue.data(null);
@@ -48,6 +55,61 @@ class FamilyController extends Notifier<AsyncValue<Family?>> {
 
   void refresh() {
     ref.invalidate(currentFamilyProvider);
+    ref.invalidate(currentFamilyMembershipProvider);
+  }
+
+  void _invalidateFamily(String familyId) {
+    ref.invalidate(currentFamilyProvider);
+    ref.invalidate(currentFamilyMembershipProvider);
+    ref.invalidate(familyMembersProvider(familyId));
+  }
+
+  Future<Family> updateFamilyName({
+    required String familyId,
+    required String name,
+  }) async {
+    final family = await ref.read(familyRepositoryProvider).updateFamilyName(
+          familyId: familyId,
+          name: name,
+        );
+    _invalidateFamily(familyId);
+    return family;
+  }
+
+  Future<Family> regenerateInviteCode(String familyId) async {
+    final family =
+        await ref.read(familyRepositoryProvider).regenerateInviteCode(familyId);
+    _invalidateFamily(familyId);
+    return family;
+  }
+
+  Future<void> updateMemberRole({
+    required String familyId,
+    required String userId,
+    required String role,
+  }) async {
+    await ref.read(familyRepositoryProvider).updateMemberRole(
+          familyId: familyId,
+          userId: userId,
+          role: role,
+        );
+    _invalidateFamily(familyId);
+  }
+
+  Future<void> removeMember({
+    required String familyId,
+    required String userId,
+  }) async {
+    await ref.read(familyRepositoryProvider).removeMember(
+          familyId: familyId,
+          userId: userId,
+        );
+    _invalidateFamily(familyId);
+  }
+
+  Future<void> leaveFamily(String familyId) async {
+    await ref.read(familyRepositoryProvider).leaveFamily(familyId);
+    _invalidateFamily(familyId);
   }
 }
 

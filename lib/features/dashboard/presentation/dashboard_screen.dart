@@ -68,10 +68,9 @@ class DashboardScreen extends ConsumerWidget {
                 onPressed: () => InviteFamilySheet.show(context, ref),
               ),
               IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Sign out',
-                onPressed: () =>
-                    ref.read(authControllerProvider.notifier).signOut(),
+                icon: const Icon(Icons.groups_outlined),
+                tooltip: 'Family management',
+                onPressed: () => context.push('/family'),
               ),
             ],
           ),

@@ -87,4 +87,17 @@ class FamilyMember {
         'status': status,
         'joined_at': joinedAt?.toIso8601String(),
       };
+
+  bool get isAdmin => role == 'admin';
+
+  String get roleLabel {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'child':
+        return 'Child';
+      default:
+        return 'Member';
+    }
+  }
 }

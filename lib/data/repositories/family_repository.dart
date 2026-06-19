@@ -56,4 +56,85 @@ class FamilyRepository {
     }
     throw StateError('Unexpected join_family response');
   }
+
+  Future<FamilyMember?> getCurrentMembership(String familyId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+
+    final response = await _client
+        .from('family_members')
+        .select('*, profiles(*)')
+        .eq('family_id', familyId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+    if (response == null) return null;
+    return FamilyMember.fromJson(response);
+  }
+
+  Future<Family> updateFamilyName({
+    required String familyId,
+    required String name,
+  }) async {
+    final response = await _client.rpc(
+      'update_family_name',
+      params: {
+        'p_family_id': familyId,
+        'p_name': name.trim(),
+      },
+    );
+
+    if (response is Map<String, dynamic>) {
+      return Family.fromJson(response);
+    }
+    throw StateError('Unexpected update_family_name response');
+  }
+
+  Future<Family> regenerateInviteCode(String familyId) async {
+    final response = await _client.rpc(
+      'regenerate_family_invite_code',
+      params: {'p_family_id': familyId},
+    );
+
+    if (response is Map<String, dynamic>) {
+      return Family.fromJson(response);
+    }
+    throw StateError('Unexpected regenerate_family_invite_code response');
+  }
+
+  Future<void> updateMemberRole({
+    required String familyId,
+    required String userId,
+    required String role,
+  }) async {
+    await _client.rpc(
+      'update_family_member_role',
+      params: {
+        'p_family_id': familyId,
+        'p_user_id': userId,
+        'p_role': role,
+      },
+    );
+  }
+
+  Future<void> removeMember({
+    required String familyId,
+    required String userId,
+  }) async {
+    await _client.rpc(
+      'remove_family_member',
+      params: {
+        'p_family_id': familyId,
+        'p_user_id': userId,
+      },
+    );
+  }
+
+  Future<void> leaveFamily(String familyId) async {
+    await _client.rpc(
+      'leave_family',
+      params: {'p_family_id': familyId},
+    );
+  }
 }

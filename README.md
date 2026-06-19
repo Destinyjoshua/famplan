@@ -8,6 +8,7 @@ A family coordination app built with Flutter and Supabase. Plan meals, manage ta
 
 - **Phone + password auth** — sign in with your mobile number
 - **Family setup** — create a family or join with an invite code
+- **Family management** — view members, invite codes, roles, rename family, leave family
 - **Dashboard** — today's tasks, events, meals, and announcements
 - **Tasks** — create, assign, complete; filter All / Mine / Overdue
 - **Calendar** — month view with event creation
@@ -77,6 +78,8 @@ The app maps that to an internal auth email (`2348012345678@famplan.auth`) so si
 3. Optional later: enable **Phone** provider + SMS for real OTP
 
 Run `supabase/migrations/20250620000001_phone_email_auth.sql` in SQL Editor if profiles are missing phone numbers after sign-up.
+
+Run `supabase/migrations/20250621000001_family_management.sql` for member roles, invite refresh, and leave-family actions.
 
 ### 6. Run the app
 
