@@ -26,6 +26,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _createFamily() async {
+    if (!_validateDisplayName()) return;
+
     final name = _familyNameController.text.trim();
     if (name.isEmpty) {
       _showError('Enter a family name');
@@ -42,6 +44,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _joinFamily() async {
+    if (!_validateDisplayName()) return;
+
     final code = _inviteCodeController.text.trim();
     if (code.isEmpty) {
       _showError('Enter an invite code');
@@ -57,9 +61,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  bool _validateDisplayName() {
+    if (_displayNameController.text.trim().isEmpty) {
+      _showError('Enter your display name');
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _ensureProfile() async {
     final displayName = _displayNameController.text.trim();
-    if (displayName.isEmpty) return;
 
     final error = await ref
         .read(authControllerProvider.notifier)
@@ -143,7 +154,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           controller: _displayNameController,
                           textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
-                            labelText: 'Your display name',
+                            labelText: 'Your display name *',
                             prefixIcon: Icon(Icons.person_outline),
                             hintText: 'e.g. Joshua',
                           ),

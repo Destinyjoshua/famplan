@@ -34,6 +34,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: authListenable,
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('FamPlan')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            state.error?.toString() ?? 'Something went wrong',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    ),
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final isAuthLoading = authState.isLoading;

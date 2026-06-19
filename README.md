@@ -103,8 +103,53 @@ lib/
 
 ```bash
 flutter analyze   # Lint / static analysis
-flutter test      # Run tests
 ```
+
+## Publishing (App Store / Play Store)
+
+### 1. Supabase production checklist
+
+- Turn **OFF** "Confirm email" under Authentication → Email (or configure SMTP)
+- Run all SQL in `supabase/migrations/` on your production project
+- Use a dedicated Supabase project for production (not dev keys)
+
+### 2. Build with environment variables
+
+Ensure `.env` exists locally before building (it is bundled as an asset), **or** pass defines:
+
+```bash
+flutter build ipa --release \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+
+flutter build appbundle --release \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 3. iOS (TestFlight / App Store)
+
+1. Open `ios/Runner.xcworkspace` in Xcode
+2. Set your **Team** and **Bundle ID** (`com.famplan.famplan` or your own)
+3. Configure **Signing & Capabilities** for Release
+4. Archive → Distribute to App Store Connect
+5. App Store Connect: name **FamPlan**, category Lifestyle, age 4+
+
+### 4. Android (Play Store)
+
+1. Create a release keystore:
+   ```bash
+   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+   ```
+2. Copy `android/key.properties.example` → `android/key.properties` and fill in paths/passwords
+3. Build: `flutter build appbundle --release` (uses release signing when `key.properties` exists)
+4. Upload the `.aab` from `build/app/outputs/bundle/release/`
+5. Play Console: name **FamPlan**, category Lifestyle
+
+### 5. Store listing copy (starter)
+
+**Subtitle:** Organize your family in one place  
+**Description:** FamPlan helps families manage tasks, shared calendars, meal plans, and announcements. Create a family, invite members with a code, and stay coordinated every day.
 
 ## Tech stack
 
