@@ -31,26 +31,20 @@ class FamilyController extends Notifier<AsyncValue<Family?>> {
 
   Future<Family> createFamily(String name) async {
     state = const AsyncValue.loading();
-    late Family family;
     state = await AsyncValue.guard(() async {
-      family = await ref.read(familyRepositoryProvider).createFamily(name: name);
-      return family;
+      return ref.read(familyRepositoryProvider).createFamily(name: name);
     });
     ref.invalidate(currentFamilyProvider);
-    return family;
+    return state.requireValue!;
   }
 
   Future<Family> joinFamily(String code) async {
     state = const AsyncValue.loading();
-    late Family family;
     state = await AsyncValue.guard(() async {
-      family = await ref.read(familyRepositoryProvider).joinFamily(
-            inviteCode: code,
-          );
-      return family;
+      return ref.read(familyRepositoryProvider).joinFamily(inviteCode: code);
     });
     ref.invalidate(currentFamilyProvider);
-    return family;
+    return state.requireValue!;
   }
 
   void refresh() {
