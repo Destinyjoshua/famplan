@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Famplans Operator Admin</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
+    <script>
+      if (!window.FAMPLANS_ADMIN_CONFIG) {
+        document.write('<script src="config.example.js"><\/script>');
+      }
+    </script>
+  </head>
+  <body>
+    <section id="setup-screen" class="shell hidden">
+      <div class="card login-card">
+        <div class="brand" style="margin-bottom: 20px">
+          <div class="brand-mark">F</div>
+          <div>
+            <h1>Connect Supabase</h1>
+            <p>One-time setup for the operator admin</p>
+          </div>
+        </div>
+        <form id="setup-form">
+          <label for="setup-url">Supabase URL</label>
+          <input id="setup-url" placeholder="https://your-project.supabase.co" required />
+          <label for="setup-key">Supabase anon key</label>
+          <input id="setup-key" placeholder="eyJ..." required />
+          <button class="primary" type="submit">Save and continue</button>
+        </form>
+        <div id="setup-message" class="hidden"></div>
+      </div>
+    </section>
+
+    <section id="login-screen" class="shell">
+      <div class="card login-card">
+        <div class="brand" style="margin-bottom: 20px">
+          <div class="brand-mark">F</div>
+          <div>
+            <h1>Famplans Admin</h1>
+            <p>Operator sign-in with your phone number</p>
+          </div>
+        </div>
+        <form id="phone-form">
+          <label for="phone">Phone number</label>
+          <input id="phone" placeholder="08012345678 or +2348012345678" required />
+          <button class="primary" id="send-code-btn" type="submit">Send code</button>
+        </form>
+        <div id="otp-section" class="hidden">
+          <p id="otp-phone-label" class="muted"></p>
+          <form id="otp-form">
+            <label for="otp">Verification code</label>
+            <input id="otp" maxlength="6" inputmode="numeric" placeholder="123456" required />
+            <button class="primary" id="verify-code-btn" type="submit">Sign in</button>
+          </form>
+        </div>
+        <div id="login-message" class="hidden"></div>
+      </div>
+    </section>
+
+    <section id="dashboard-screen" class="shell hidden">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark">F</div>
+          <div>
+            <h1>Famplans Operator Admin</h1>
+            <p>Manage customers and families</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="refresh-btn" type="button">Refresh</button>
+          <button class="secondary" id="sign-out-btn" type="button">Sign out</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <strong id="stat-users">0</strong>
+          <span>Total customers</span>
+        </div>
+        <div class="stat">
+          <strong id="stat-families">0</strong>
+          <span>Families</span>
+        </div>
+        <div class="stat">
+          <strong id="stat-new-users">0</strong>
+          <span>New users (7 days)</span>
+        </div>
+        <div class="stat">
+          <strong id="stat-members">0</strong>
+          <span>Active members</span>
+        </div>
+      </div>
+
+      <div id="dashboard-message" class="hidden"></div>
+
+      <div class="card">
+        <div class="tabs">
+          <button class="tab active" data-tab="customers" type="button">Customers</button>
+          <button class="tab" data-tab="families" type="button">Families</button>
+        </div>
+
+        <div id="customers-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Families</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="customers-body"></tbody>
+          </table>
+        </div>
+
+        <div id="families-panel" class="hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Family</th>
+                <th>Members</th>
+                <th>Admins</th>
+                <th>Invite code</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="families-body"></tbody>
+          </table>
+          <div id="family-detail" class="detail-panel hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>
