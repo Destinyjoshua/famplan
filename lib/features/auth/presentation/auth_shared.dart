@@ -3,27 +3,33 @@ import 'package:famplan/core/utils/phone_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-String friendlyAuthError(Object error, {required bool isSignUp}) {
+String friendlyAuthError(Object error) {
   final message = error.toString().toLowerCase();
-  if (message.contains('invalid login credentials')) {
-    return isSignUp
-        ? 'Could not create account. Check your details and try again.'
-        : 'Wrong phone number or password.';
+  if (message.contains('invalid or expired verification code') ||
+      message.contains('invalid login credentials')) {
+    return 'Invalid or expired code. Request a new one and try again.';
+  }
+  if (message.contains('could not send verification code') ||
+      message.contains('sms service is not configured')) {
+    return 'Could not send SMS code. Try again in a moment.';
   }
   if (message.contains('user already registered') ||
       message.contains('already been registered')) {
-    return 'An account with this number already exists. Sign in instead.';
-  }
-  if (message.contains('password')) {
-    return 'Password must be at least 6 characters.';
+    return 'This number already has an account. Sign in with a new code.';
   }
   if (message.contains('phone_provider_disabled')) {
     return 'Phone sign-in is not enabled on the server. Contact support.';
   }
-  if (message.contains('phone') || message.contains('email')) {
+  if (message.contains('valid nigerian')) {
     return 'Enter a valid Nigerian number, e.g. ${formatPhoneHint()} or +2348012345678';
   }
-  return error.toString();
+  if (message.contains('function') && message.contains('not found')) {
+    return 'SMS login is not deployed yet. Contact support.';
+  }
+  return error.toString().replaceFirst('AuthException: ', '').replaceFirst(
+        'Exception: ',
+        '',
+      );
 }
 
 class AuthBranding extends StatelessWidget {
@@ -126,28 +132,33 @@ class PhoneField extends StatelessWidget {
   }
 }
 
-class PasswordField extends StatelessWidget {
-  const PasswordField({
-    super.key,
-    required this.controller,
-    this.label = 'Password',
-  });
+class OtpField extends StatelessWidget {
+  const OtpField({super.key, required this.controller});
 
   final TextEditingController controller;
-  final String label;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      obscureText: true,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.lock_outline),
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            letterSpacing: 8,
+            fontWeight: FontWeight.w700,
+          ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(6),
+      ],
+      decoration: const InputDecoration(
+        labelText: 'Verification code',
+        hintText: '123456',
+        prefixIcon: Icon(Icons.sms_outlined),
       ),
       validator: (value) {
-        if (value == null || value.length < 6) {
-          return 'Password must be at least 6 characters';
+        if (value == null || !RegExp(r'^\d{6}$').hasMatch(value)) {
+          return 'Enter the 6-digit code from SMS';
         }
         return null;
       },

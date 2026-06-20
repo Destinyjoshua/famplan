@@ -3,6 +3,13 @@ import 'package:famplan/core/utils/phone_utils.dart';
 import 'package:famplan/data/models/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+class OtpSendResult {
+  const OtpSendResult({required this.pinId, required this.phone});
+
+  final String pinId;
+  final String phone;
+}
+
 class AuthRepository {
   SupabaseClient get _client => SupabaseConfig.client;
 
@@ -12,50 +19,77 @@ class AuthRepository {
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
-  Future<void> signUpWithPhone({
+  Future<OtpSendResult> sendOtp({required String phone}) async {
+    final normalized = normalizePhone(phone);
+    if (normalized == null) {
+      throw ArgumentError('Enter a valid Nigerian phone number');
+    }
+
+    final response = await _client.functions.invoke(
+      'send-otp',
+      body: {'phone': normalized},
+    );
+
+    final data = _readFunctionData(response.data);
+    _throwIfFunctionError(response.status, data);
+
+    final pinId = data['pin_id'] as String?;
+    if (pinId == null || pinId.isEmpty) {
+      throw const AuthException('Could not send verification code');
+    }
+
+    return OtpSendResult(
+      pinId: pinId,
+      phone: data['phone'] as String? ?? normalized,
+    );
+  }
+
+  Future<void> verifyOtp({
     required String phone,
-    required String password,
+    required String pinId,
+    required String pin,
   }) async {
     final normalized = normalizePhone(phone);
     if (normalized == null) {
       throw ArgumentError('Enter a valid Nigerian phone number');
     }
 
-    final email = phoneToAuthEmail(normalized);
-
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      data: {
+    final response = await _client.functions.invoke(
+      'verify-otp',
+      body: {
         'phone': normalized,
-        'display_name': normalized,
+        'pin_id': pinId,
+        'pin': pin.trim(),
       },
     );
 
-    if (response.user == null) {
-      throw const AuthException('Could not create account');
+    final data = _readFunctionData(response.data);
+    _throwIfFunctionError(response.status, data);
+
+    final accessToken = data['access_token'] as String?;
+    final refreshToken = data['refresh_token'] as String?;
+
+    if (accessToken == null || refreshToken == null) {
+      throw const AuthException('Could not sign in after verification');
     }
 
+    await _client.auth.setSession(refreshToken, accessToken: accessToken);
     await _syncProfilePhone(normalized);
   }
 
-  Future<void> signInWithPhone({
-    required String phone,
-    required String password,
-  }) async {
-    final normalized = normalizePhone(phone);
-    if (normalized == null) {
-      throw ArgumentError('Enter a valid Nigerian phone number');
+  Map<String, dynamic> _readFunctionData(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  void _throwIfFunctionError(int? status, Map<String, dynamic> data) {
+    if (status != null && status >= 400) {
+      throw AuthException(data['error']?.toString() ?? 'Request failed');
     }
-
-    final email = phoneToAuthEmail(normalized);
-
-    await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-
-    await _syncProfilePhone(normalized);
+    if (data['error'] != null) {
+      throw AuthException(data['error'].toString());
+    }
   }
 
   Future<void> _syncProfilePhone(String phone) async {

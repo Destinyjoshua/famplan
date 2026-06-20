@@ -2,11 +2,11 @@
 
 A family coordination app built with Flutter and Supabase. Plan meals, manage tasks, share a calendar, and post announcements — all in one place.
 
-> Nigerian phone sign-in (`080...` or `+234...`) with password. No SMS required for MVP.
+> Nigerian phone sign-in (`080...` or `+234...`) with SMS OTP via [Termii](https://termii.com/).
 
 ## Features
 
-- **Phone + password auth** — sign in with your mobile number
+- **Phone + SMS OTP auth** — sign in with a one-time code (Termii)
 - **Family setup** — create a family or join with an invite code
 - **Family management** — view members, invite codes, roles, rename family, leave family
 - **Dashboard** — today's tasks, events, meals, and announcements
@@ -65,21 +65,43 @@ SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-### 5. Auth (phone UI, works out of the box)
+### 5. Auth — Termii SMS OTP
 
-Users enter a Nigerian number: `08012345678` or `+2348012345678`.
+Users enter a Nigerian number (`080...` or `+234...`), receive a **6-digit SMS code** via Termii, and sign in. Same flow for new and returning users.
 
-The app maps that to an internal auth email (`2348012345678@famplan.auth`) so sign-up works **without SMS** — no Twilio setup needed for MVP.
+#### A. Termii account
 
-**Supabase settings (recommended):**
+1. Sign up at [termii.com](https://termii.com/)
+2. Copy your **API Key** (Dashboard → Settings → API token)
+3. Register a **Sender ID** (e.g. `Famplans`) and wait for approval
+4. Note your **Base URL** from the Termii dashboard (often `https://api.ng.termii.com`)
 
-1. **Authentication → Providers → Email** — enabled (default)
-2. **Authentication → Providers → Email** — turn **OFF** "Confirm email" for dev/testing
-3. Optional later: enable **Phone** provider + SMS for real OTP
+#### B. Deploy Supabase Edge Functions
 
-Run `supabase/migrations/20250620000001_phone_email_auth.sql` in SQL Editor if profiles are missing phone numbers after sign-up.
+Install [Supabase CLI](https://supabase.com/docs/guides/cli), link your project, then:
 
-Run `supabase/migrations/20250621000001_family_management.sql` for member roles, invite refresh, and leave-family actions.
+```bash
+cd famplan
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+
+supabase secrets set \
+  TERMII_API_KEY=your-termii-api-key \
+  TERMII_SENDER_ID=Famplans \
+  TERMII_BASE_URL=https://api.ng.termii.com
+
+supabase functions deploy send-otp
+supabase functions deploy verify-otp
+```
+
+The Termii API key stays on the server only — never put it in the Flutter app.
+
+#### C. Supabase settings
+
+1. **Authentication → Providers → Email** — keep enabled (used internally after OTP)
+2. **Authentication → Providers → Email** — turn **OFF** "Confirm email"
+
+Run `supabase/migrations/20250621000001_family_management.sql` for family management actions.
 
 ### 6. Run the app
 

@@ -25,30 +25,30 @@ class AuthController extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncValue.data(null);
 
-  Future<void> signUpWithPhone({
-    required String phone,
-    required String password,
-  }) async {
+  Future<OtpSendResult> sendOtp({required String phone}) async {
     state = const AsyncValue.loading();
+    late OtpSendResult result;
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).signUpWithPhone(
-            phone: phone,
-            password: password,
-          );
+      result = await ref.read(authRepositoryProvider).sendOtp(phone: phone);
     });
+    if (state.hasError) throw state.error!;
+    return result;
   }
 
-  Future<void> signInWithPhone({
+  Future<void> verifyOtp({
     required String phone,
-    required String password,
+    required String pinId,
+    required String pin,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).signInWithPhone(
+      await ref.read(authRepositoryProvider).verifyOtp(
             phone: phone,
-            password: password,
+            pinId: pinId,
+            pin: pin,
           );
     });
+    if (state.hasError) throw state.error!;
   }
 
   Future<void> signOut() async {
