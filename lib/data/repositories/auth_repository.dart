@@ -1,4 +1,5 @@
 import 'package:famplan/config/supabase.dart';
+import 'package:famplan/core/utils/email_utils.dart';
 import 'package:famplan/core/utils/phone_utils.dart';
 import 'package:famplan/data/models/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +26,7 @@ class AuthRepository {
       throw ArgumentError('Enter a valid Nigerian phone number');
     }
 
-    final response = await _client.functions.invoke(
+    final response = await _invokeFunction(
       'send-otp',
       body: {'phone': normalized},
     );
@@ -54,7 +55,7 @@ class AuthRepository {
       throw ArgumentError('Enter a valid Nigerian phone number');
     }
 
-    final response = await _client.functions.invoke(
+    final response = await _invokeFunction(
       'verify-otp',
       body: {
         'phone': normalized,
@@ -75,6 +76,31 @@ class AuthRepository {
 
     await _client.auth.setSession(refreshToken, accessToken: accessToken);
     await _syncProfilePhone(normalized);
+  }
+
+  Future<FunctionResponse> _invokeFunction(
+    String name, {
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      return await _client.functions.invoke(name, body: body);
+    } on FunctionException catch (error) {
+      throw AuthException(_functionErrorMessage(error));
+    }
+  }
+
+  String _functionErrorMessage(FunctionException error) {
+    final details = error.details;
+    if (details is Map) {
+      final message = details['error'] ?? details['message'];
+      if (message != null && '$message'.trim().isNotEmpty) {
+        return '$message'.trim();
+      }
+    }
+    if (details is String && details.trim().isNotEmpty) {
+      return details.trim();
+    }
+    return error.reasonPhrase ?? 'Request failed';
   }
 
   Map<String, dynamic> _readFunctionData(dynamic data) {
@@ -123,6 +149,7 @@ class AuthRepository {
   Future<Profile> upsertProfile({
     required String displayName,
     String? phone,
+    String? contactEmail,
   }) async {
     final user = currentUser;
     if (user == null) {
@@ -135,6 +162,18 @@ class AuthRepository {
     };
     if (phone != null) {
       payload['phone'] = phone;
+    }
+    if (contactEmail != null) {
+      final trimmedEmail = contactEmail.trim();
+      if (trimmedEmail.isEmpty) {
+        payload['contact_email'] = null;
+      } else {
+        final normalizedEmail = normalizeContactEmail(trimmedEmail);
+        if (normalizedEmail == null) {
+          throw ArgumentError('Enter a valid email address');
+        }
+        payload['contact_email'] = normalizedEmail;
+      }
     }
 
     final response = await _client

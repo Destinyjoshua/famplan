@@ -16,9 +16,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('TERMII_API_KEY');
-    const senderId = Deno.env.get('TERMII_SENDER_ID');
-    const baseUrl = Deno.env.get('TERMII_BASE_URL') ?? 'https://api.ng.termii.com';
+    const apiKey = Deno.env.get('TERMII_API_KEY')?.trim();
+    const senderId = Deno.env.get('TERMII_SENDER_ID')?.trim();
+    const baseUrl =
+      Deno.env.get('TERMII_BASE_URL')?.trim() ?? 'https://api.ng.termii.com';
 
     if (!apiKey || !senderId) {
       return jsonResponse(
@@ -54,9 +55,25 @@ Deno.serve(async (req) => {
     const termiiData = await termiiResponse.json();
 
     if (!termiiResponse.ok) {
-      console.error('Termii send error', termiiData);
+      const termiiMessage = `${termiiData?.message ?? ''}`.trim();
+      console.error('Termii send error', {
+        status: termiiResponse.status,
+        message: termiiMessage,
+        data: termiiData,
+      });
+
+      if (/invalid api key/i.test(termiiMessage)) {
+        return jsonResponse(
+          {
+            error:
+              'SMS provider credentials are invalid. Update TERMII_API_KEY in Supabase secrets.',
+          },
+          502,
+        );
+      }
+
       return jsonResponse(
-        { error: termiiData?.message ?? 'Could not send verification code' },
+        { error: termiiMessage || 'Could not send verification code' },
         502,
       );
     }

@@ -58,12 +58,16 @@ class AuthController extends Notifier<AsyncValue<void>> {
     });
   }
 
-  Future<String?> updateProfile(String displayName) async {
+  Future<String?> updateProfile(
+    String displayName, {
+    String? contactEmail,
+  }) async {
     state = const AsyncValue.loading();
     String? errorMessage;
     state = await AsyncValue.guard(() async {
       await ref.read(authRepositoryProvider).upsertProfile(
             displayName: displayName,
+            contactEmail: contactEmail,
           );
       ref.invalidate(profileProvider);
     });

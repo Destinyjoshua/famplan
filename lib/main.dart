@@ -11,7 +11,7 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
-    // Release builds can use --dart-define instead of a bundled .env file.
+    // Web/release builds can use --dart-define instead of a bundled .env file.
   }
 
   try {

@@ -44,8 +44,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Node (Supabase CLI local install)
+node_modules/
+
 # Environment secrets
 .env
+admin/config.js
 
 # Android release signing
 android/key.properties

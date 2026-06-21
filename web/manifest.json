@@ -1,12 +1,12 @@
 {
-    "name": "famplan",
-    "short_name": "famplan",
+    "name": "Famplans",
+    "short_name": "Famplans",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FFF8F0",
+    "theme_color": "#FF6B6B",
+    "description": "Family coordination for tasks, calendar, meals, and announcements.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

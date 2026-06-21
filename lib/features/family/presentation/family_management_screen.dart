@@ -1,5 +1,8 @@
 import 'package:famplan/core/theme/app_theme.dart';
+import 'package:famplan/core/utils/email_utils.dart';
+import 'package:famplan/core/utils/responsive.dart';
 import 'package:famplan/data/models/family.dart';
+import 'package:famplan/data/models/profile.dart';
 import 'package:famplan/providers/auth_provider.dart';
 import 'package:famplan/providers/family_provider.dart';
 import 'package:famplan/shared/widgets/loading_view.dart';
@@ -22,7 +25,11 @@ class FamilyManagementScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Family'),
       ),
-      body: familyAsync.when(
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: pageMaxWidth(context)),
+          child: familyAsync.when(
         loading: () => const LoadingView(message: 'Loading family...'),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (family) {
@@ -58,6 +65,12 @@ class FamilyManagementScreen extends ConsumerWidget {
                   onRegenerate: isAdmin
                       ? () => _regenerateInviteCode(context, ref, family)
                       : null,
+                ),
+                const SizedBox(height: 16),
+                _QuickLinksCard(
+                  planName: family.subscription.plan.name,
+                  onHealth: () => context.push('/health'),
+                  onPlans: () => context.push('/plans'),
                 ),
                 const SizedBox(height: 16),
                 _SectionTitle(
@@ -120,13 +133,14 @@ class FamilyManagementScreen extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      profileAsync.value?.phone ?? 'No phone on file',
+                      _profileSubtitle(profileAsync.value),
                     ),
                     trailing: const Icon(Icons.edit_outlined),
                     onTap: () => _showEditProfileDialog(
                       context,
                       ref,
-                      profileAsync.value?.displayName ?? '',
+                      displayName: profileAsync.value?.displayName ?? '',
+                      contactEmail: profileAsync.value?.contactEmail,
                     ),
                   ),
                 ),
@@ -167,8 +181,26 @@ class FamilyManagementScreen extends ConsumerWidget {
             ),
           );
         },
+          ),
+        ),
       ),
     );
+  }
+
+  String _profileSubtitle(Profile? profile) {
+    if (profile == null) return 'No profile on file';
+
+    final parts = <String>[];
+    if (profile.phone != null && profile.phone!.isNotEmpty) {
+      parts.add(profile.phone!);
+    }
+    if (profile.contactEmail != null && profile.contactEmail!.isNotEmpty) {
+      parts.add(profile.contactEmail!);
+    } else {
+      parts.add('Add email for family updates');
+    }
+
+    return parts.join(' · ');
   }
 
   String _initials(String name) {
@@ -236,36 +268,12 @@ class FamilyManagementScreen extends ConsumerWidget {
     WidgetRef ref,
     Family family,
   ) async {
-    final controller = TextEditingController(text: family.name);
-
-    final saved = await showDialog<bool>(
+    final name = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename family'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Family name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      builder: (context) => _RenameFamilyDialog(initialName: family.name),
     );
 
-    if (saved != true || !context.mounted) return;
-
-    final name = controller.text.trim();
-    controller.dispose();
-    if (name.isEmpty) return;
+    if (name == null || name.isEmpty || !context.mounted) return;
 
     try {
       await ref.read(familyControllerProvider.notifier).updateFamilyName(
@@ -286,42 +294,26 @@ class FamilyManagementScreen extends ConsumerWidget {
 
   Future<void> _showEditProfileDialog(
     BuildContext context,
-    WidgetRef ref,
-    String currentName,
-  ) async {
-    final controller = TextEditingController(text: currentName);
-
-    final saved = await showDialog<bool>(
+    WidgetRef ref, {
+    required String displayName,
+    String? contactEmail,
+  }) async {
+    final result = await showDialog<ProfileEditResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit display name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Display name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => _EditProfileDialog(
+        initialName: isPlaceholderDisplayName(displayName)
+            ? ''
+            : displayName,
+        initialEmail: contactEmail ?? '',
       ),
     );
 
-    if (saved != true || !context.mounted) return;
+    if (result == null || !context.mounted) return;
 
-    final name = controller.text.trim();
-    controller.dispose();
-    if (name.isEmpty) return;
-
-    final error =
-        await ref.read(authControllerProvider.notifier).updateProfile(name);
+    final error = await ref.read(authControllerProvider.notifier).updateProfile(
+          result.displayName,
+          contactEmail: result.contactEmail,
+        );
     if (!context.mounted) return;
 
     if (error != null) {
@@ -446,6 +438,171 @@ class FamilyManagementScreen extends ConsumerWidget {
     final message = error.toString().replaceFirst('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+}
+
+class _RenameFamilyDialog extends StatefulWidget {
+  const _RenameFamilyDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_RenameFamilyDialog> createState() => _RenameFamilyDialogState();
+}
+
+class _RenameFamilyDialogState extends State<_RenameFamilyDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Rename family'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(labelText: 'Family name'),
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+class ProfileEditResult {
+  const ProfileEditResult({
+    required this.displayName,
+    this.contactEmail,
+  });
+
+  final String displayName;
+  final String? contactEmail;
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({
+    required this.initialName,
+    required this.initialEmail,
+  });
+
+  final String initialName;
+  final String initialEmail;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  String? _emailError;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _nameController.text.trim();
+    final emailInput = _emailController.text.trim();
+
+    if (name.isEmpty) return;
+
+    if (emailInput.isNotEmpty && normalizeContactEmail(emailInput) == null) {
+      setState(() => _emailError = 'Enter a valid email address');
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      ProfileEditResult(
+        displayName: name,
+        contactEmail: emailInput.isEmpty ? '' : emailInput,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit profile'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Display name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: InputDecoration(
+                labelText: 'Email (optional)',
+                hintText: 'you@example.com',
+                errorText: _emailError,
+                helperText: 'Sign-in stays on your phone number.',
+              ),
+              onChanged: (_) {
+                if (_emailError != null) {
+                  setState(() => _emailError = null);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
@@ -639,6 +796,49 @@ class _InviteCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _QuickLinksCard extends StatelessWidget {
+  const _QuickLinksCard({
+    required this.planName,
+    required this.onHealth,
+    required this.onPlans,
+  });
+
+  final String planName;
+  final VoidCallback onHealth;
+  final VoidCallback onPlans;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.coral.withValues(alpha: 0.12),
+              child: const Icon(Icons.favorite_outline, color: AppTheme.coral),
+            ),
+            title: const Text('Family health'),
+            subtitle: const Text('Activity score and coaching tips'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onHealth,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.teal.withValues(alpha: 0.12),
+              child: const Icon(Icons.workspace_premium_outlined, color: AppTheme.teal),
+            ),
+            title: const Text('Plans'),
+            subtitle: Text('Current plan: $planName'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onPlans,
+          ),
+        ],
       ),
     );
   }

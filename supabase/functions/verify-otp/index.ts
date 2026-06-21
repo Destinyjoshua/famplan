@@ -3,7 +3,6 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import {
   normalizePhone,
   phoneToAuthEmail,
-  phoneToTermiiFormat,
 } from '../_shared/phone.ts';
 
 interface VerifyOtpRequest {
@@ -22,8 +21,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('TERMII_API_KEY');
-    const baseUrl = Deno.env.get('TERMII_BASE_URL') ?? 'https://api.ng.termii.com';
+    const apiKey = Deno.env.get('TERMII_API_KEY')?.trim();
+    const baseUrl =
+      Deno.env.get('TERMII_BASE_URL')?.trim() ?? 'https://api.ng.termii.com';
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -66,12 +66,13 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const userId = await resolveUserId(admin, normalized);
-    const { data: sessionData, error: sessionError } =
-      await admin.auth.admin.createSession(userId);
+    const email = phoneToAuthEmail(normalized);
+    await ensureAuthUser(admin, normalized, email);
 
-    if (sessionError || !sessionData.session) {
-      console.error('createSession error', sessionError);
+    const session = await createSessionForEmail(admin, email);
+    const userId = session.user?.id;
+
+    if (!userId) {
       return jsonResponse({ error: 'Could not start session' }, 500);
     }
 
@@ -79,8 +80,6 @@ Deno.serve(async (req) => {
       phone: normalized,
       updated_at: new Date().toISOString(),
     }).eq('id', userId);
-
-    const session = sessionData.session;
 
     return jsonResponse({
       access_token: session.access_token,
@@ -91,14 +90,21 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('verify-otp error', error);
-    return jsonResponse({ error: 'Could not verify code' }, 500);
+    const message = error instanceof Error ? error.message : 'Could not verify code';
+    return jsonResponse({ error: message }, 500);
   }
 });
 
-async function resolveUserId(
+async function ensureAuthUser(
   admin: ReturnType<typeof createClient>,
   normalizedPhone: string,
+  email: string,
 ): Promise<string> {
+  const existingId = await findUserIdByEmail(admin, email);
+  if (existingId) {
+    return existingId;
+  }
+
   const { data: profile } = await admin
     .from('profiles')
     .select('id')
@@ -109,19 +115,17 @@ async function resolveUserId(
     return profile.id;
   }
 
-  const email = phoneToAuthEmail(normalizedPhone);
-
   const { data: created, error: createError } =
     await admin.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: {
         phone: normalizedPhone,
-        display_name: normalizedPhone,
+        display_name: 'Family Member',
       },
     });
 
-  if (!createError && created.user) {
+  if (!createError && created.user?.id) {
     return created.user.id;
   }
 
@@ -131,15 +135,77 @@ async function resolveUserId(
     message.includes('registered') ||
     message.includes('exists')
   ) {
-    const { data: existing, error: lookupError } =
-      await admin.auth.admin.getUserByEmail(email);
-
-    if (lookupError || !existing.user) {
-      throw lookupError ?? new Error('Existing user could not be loaded');
+    const retryId = await findUserIdByEmail(admin, email);
+    if (retryId) {
+      return retryId;
     }
-
-    return existing.user.id;
   }
 
   throw createError ?? new Error('Could not create user');
+}
+
+async function findUserIdByEmail(
+  admin: ReturnType<typeof createClient>,
+  email: string,
+): Promise<string | null> {
+  let page = 1;
+  const perPage = 200;
+
+  while (page <= 10) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      throw error;
+    }
+
+    const users = data.users ?? [];
+    const match = users.find(
+      (user) => user.email?.toLowerCase() === email.toLowerCase(),
+    );
+    if (match?.id) {
+      return match.id;
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return null;
+}
+
+async function createSessionForEmail(
+  admin: ReturnType<typeof createClient>,
+  email: string,
+) {
+  const { data: linkData, error: linkError } =
+    await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+    });
+
+  if (linkError) {
+    throw linkError;
+  }
+
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!tokenHash) {
+    throw new Error('Auth link did not include a token hash');
+  }
+
+  const { data: otpData, error: otpError } = await admin.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: tokenHash,
+  });
+
+  if (otpError) {
+    throw otpError;
+  }
+
+  if (!otpData?.session) {
+    throw new Error('Auth verification did not return a session');
+  }
+
+  return otpData.session;
 }

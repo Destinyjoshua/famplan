@@ -5,7 +5,9 @@ import 'package:famplan/data/models/meal.dart';
 import 'package:famplan/data/models/task.dart';
 import 'package:famplan/providers/auth_provider.dart';
 import 'package:famplan/providers/dashboard_provider.dart';
+import 'package:famplan/providers/family_health_provider.dart';
 import 'package:famplan/providers/family_provider.dart';
+import 'package:famplan/providers/plan_provider.dart';
 import 'package:famplan/providers/task_provider.dart';
 import 'package:famplan/shared/widgets/empty_state.dart';
 import 'package:famplan/shared/widgets/invite_family_sheet.dart';
@@ -40,6 +42,8 @@ class DashboardScreen extends ConsumerWidget {
         }
 
         final dashboardAsync = ref.watch(dashboardProvider(family.id));
+        final healthAsync = ref.watch(familyHealthProvider(family.id));
+        final subscriptionAsync = ref.watch(familySubscriptionProvider);
         final tasksAsync = ref.watch(tasksStreamProvider(family.id));
         final pendingTasks =
             tasksAsync.value?.where((t) => !t.isCompleted).length ?? 0;
@@ -87,6 +91,21 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   _HeroHeader(date: dashboard.date),
                   const SizedBox(height: 14),
+                  healthAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (health) => Column(
+                      children: [
+                        _FamilyHealthBanner(
+                          score: health.score,
+                          label: health.label,
+                          planLabel: subscriptionAsync.value?.plan.name ?? 'Free',
+                          onTap: () => context.push('/health'),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                    ),
+                  ),
                   Row(
                     children: [
                       StatChip(
@@ -182,6 +201,85 @@ class DashboardScreen extends ConsumerWidget {
     if (name == null || name.isEmpty) return time;
     final first = name.split(' ').first;
     return '$time, $first';
+  }
+}
+
+class _FamilyHealthBanner extends StatelessWidget {
+  const _FamilyHealthBanner({
+    required this.score,
+    required this.label,
+    required this.planLabel,
+    required this.onTap,
+  });
+
+  final int score;
+  final String label;
+  final String planLabel;
+  final VoidCallback onTap;
+
+  Color get _scoreColor {
+    if (score >= 80) return AppTheme.teal;
+    if (score >= 60) return const Color(0xFF5CB85C);
+    if (score >= 40) return AppTheme.amber;
+    return AppTheme.coral;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: _scoreColor.withValues(alpha: 0.12),
+                child: Text(
+                  '$score',
+                  style: TextStyle(
+                    color: _scoreColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Family health · $label',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$planLabel plan · Tap for full analysis',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.favorite_outline, color: AppTheme.coral),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:famplan/core/theme/app_theme.dart';
+import 'package:famplan/core/utils/email_utils.dart';
 import 'package:famplan/providers/auth_provider.dart';
 import 'package:famplan/providers/family_provider.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _familyNameController = TextEditingController();
   final _inviteCodeController = TextEditingController();
   final _displayNameController = TextEditingController();
+  final _emailController = TextEditingController();
   bool _showJoin = false;
 
   @override
@@ -22,6 +24,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _familyNameController.dispose();
     _inviteCodeController.dispose();
     _displayNameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -71,10 +74,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _ensureProfile() async {
     final displayName = _displayNameController.text.trim();
+    final emailInput = _emailController.text.trim();
 
-    final error = await ref
-        .read(authControllerProvider.notifier)
-        .updateProfile(displayName);
+    if (emailInput.isNotEmpty && normalizeContactEmail(emailInput) == null) {
+      _showError('Enter a valid email address or leave it blank');
+      throw Exception('Invalid email');
+    }
+
+    final error = await ref.read(authControllerProvider.notifier).updateProfile(
+          displayName,
+          contactEmail: emailInput.isEmpty ? null : emailInput,
+        );
     if (error != null) {
       throw Exception(error);
     }
@@ -100,11 +110,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
 
     ref.listen(profileProvider, (previous, next) {
-      final displayName = next.value?.displayName;
-      if (displayName != null &&
-          displayName.isNotEmpty &&
-          _displayNameController.text.isEmpty) {
-        _displayNameController.text = displayName;
+      final profile = next.value;
+      if (profile == null) return;
+
+      if (_displayNameController.text.isEmpty &&
+          !isPlaceholderDisplayName(profile.displayName)) {
+        _displayNameController.text = profile.displayName;
+      }
+
+      if (_emailController.text.isEmpty &&
+          profile.contactEmail != null &&
+          profile.contactEmail!.isNotEmpty) {
+        _emailController.text = profile.contactEmail!;
       }
     });
 
@@ -157,6 +174,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             labelText: 'Your display name *',
                             prefixIcon: Icon(Icons.person_outline),
                             hintText: 'e.g. Joshua',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Email (optional)',
+                            prefixIcon: Icon(Icons.email_outlined),
+                            hintText: 'you@example.com',
+                            helperText:
+                                'For family updates. Sign-in stays on your phone number.',
                           ),
                         ),
                         const SizedBox(height: 24),

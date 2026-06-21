@@ -1,3 +1,4 @@
+import 'package:famplan/core/utils/responsive.dart';
 import 'package:famplan/features/auth/presentation/auth_shared.dart';
 import 'package:famplan/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
@@ -96,8 +97,23 @@ class _PhoneOtpAuthScreenState extends ConsumerState<PhoneOtpAuthScreen> {
             title: widget.isSignUp ? 'Create your account' : 'Welcome back',
             subtitle: _codeSent
                 ? 'Enter the 6-digit code sent to your phone'
-                : 'We will text you a one-time verification code',
+                : isWebPlatform()
+                    ? 'Sign in with your Nigerian phone number. The SMS code arrives on your phone.'
+                    : 'We will text you a one-time verification code',
           ),
+          if (isWebPlatform() && _codeSent) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Check the text message on your phone, then enter the code here.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.65),
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ],
           const SizedBox(height: 32),
           if (!_codeSent) ...[
             Form(

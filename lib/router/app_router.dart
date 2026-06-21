@@ -1,6 +1,8 @@
 import 'package:famplan/features/auth/presentation/login_screen.dart';
 import 'package:famplan/features/auth/presentation/signup_screen.dart';
 import 'package:famplan/features/family/presentation/family_management_screen.dart';
+import 'package:famplan/features/health/presentation/family_health_screen.dart';
+import 'package:famplan/features/plans/presentation/plans_screen.dart';
 import 'package:famplan/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:famplan/providers/auth_provider.dart';
 import 'package:famplan/providers/family_provider.dart';
@@ -96,6 +98,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/family',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const FamilyManagementScreen(),
+      ),
+      GoRoute(
+        path: '/health',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const FamilyHealthScreen(),
+      ),
+      GoRoute(
+        path: '/plans',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PlansScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

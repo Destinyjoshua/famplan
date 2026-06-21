@@ -9,9 +9,16 @@ String friendlyAuthError(Object error) {
       message.contains('invalid login credentials')) {
     return 'Invalid or expired code. Request a new one and try again.';
   }
+  if (message.contains('could not verify code') ||
+      message.contains('could not start session') ||
+      message.contains('could not sign in after verification')) {
+    return 'Sign-in failed after verification. Request a new code and try again.';
+  }
   if (message.contains('could not send verification code') ||
-      message.contains('sms service is not configured')) {
-    return 'Could not send SMS code. Try again in a moment.';
+      message.contains('sms service is not configured') ||
+      message.contains('sms provider credentials are invalid') ||
+      message.contains('invalid api key')) {
+    return 'Could not send SMS code right now. Try again shortly.';
   }
   if (message.contains('user already registered') ||
       message.contains('already been registered')) {

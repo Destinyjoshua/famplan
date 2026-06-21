@@ -1,3 +1,4 @@
+import 'package:famplan/data/models/family_plan.dart';
 import 'package:famplan/data/models/profile.dart';
 
 class Family {
@@ -9,6 +10,7 @@ class Family {
     this.inviteCodeExpiresAt,
     required this.createdBy,
     required this.createdAt,
+    required this.subscription,
   });
 
   final String id;
@@ -18,6 +20,7 @@ class Family {
   final DateTime? inviteCodeExpiresAt;
   final String createdBy;
   final DateTime createdAt;
+  final FamilySubscription subscription;
 
   factory Family.fromJson(Map<String, dynamic> json) {
     return Family(
@@ -30,6 +33,7 @@ class Family {
           : null,
       createdBy: json['created_by'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
+      subscription: FamilySubscription.fromFamilyJson(json),
     );
   }
 
@@ -41,6 +45,10 @@ class Family {
         'invite_code_expires_at': inviteCodeExpiresAt?.toIso8601String(),
         'created_by': createdBy,
         'created_at': createdAt.toIso8601String(),
+        'plan_id': subscription.planId,
+        'plan_status': subscription.planStatus,
+        'plan_started_at': subscription.planStartedAt?.toIso8601String(),
+        'plan_expires_at': subscription.planExpiresAt?.toIso8601String(),
       };
 }
 
